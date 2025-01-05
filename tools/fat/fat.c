@@ -1,6 +1,9 @@
 #include <stdio.h>
 #include <stdint.h>
 
+typedef uint8_t bool;
+#define true 1
+#define false 0
 typedef struct 
 {
     uint8_t BootJumpInstruction[3];
@@ -28,18 +31,32 @@ typedef struct
 
     // ... we don't care about code ...
 
-} BootSector;
+} __attribute__((packed)) BootSector;
 
+BootSector g_BootSector(FILE* disk);
 
+bool readBootSector(FILE* disk)
+{
+    return fread(&g_BootSector, sizeof(g_BootSector), 1, disk) > 0;
+}
 
 int main(int argc, char** argv)
 {
     if (argc < 3) {
-        printf("Santax: %s <disk image> <file name>", argv[0]);
+        printf("Santax: %s <disk image> <file name>\n", argv[0]);
         return -1;
     }
 
     FILE* disk = fopen(argv[1], "rb");
+    if (!disk){
+        fprintf(stderr, "Cannot open disk image %s!\n", argv[1]);
+        return -1;
+    }
+
+    if (!readBootSector(disk)) {
+        fprintf(stderr, "Could not read boot sector!\n");
+        return -2;
+    }
 
     return 0;
 }
