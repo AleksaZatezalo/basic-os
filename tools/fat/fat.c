@@ -47,11 +47,12 @@ typedef struct
     uint16_t ModifiedDate;
     uint16_t FirstClusterLow;
     uint32_t Size;
-    
+
 } __attribute__((packed)) DirectoryEntry;
 
 BootSector g_BootSector(FILE* disk);
 uint8_t* g_Fat = NULL;
+DirectoryEntry* g_RootDirectory = NULL;
 
 
 bool readBootSector(FILE* disk)
@@ -73,6 +74,27 @@ bool readFat(FILE* disk)
     return readSectors(disk, g_BootSector.ReservedSectors, g_BootSector.SectorsPerFat, g_Fat);
 }
 
+bool readRootDirectory(FILE* disk)
+{
+    uint32_t lba = g_BootSector.ReservedSectors + g_BootSector.SectorsPerFat * g_BootSector.FatCount;
+    uint32_t size = sizeof(DirectoryEntry) * g_BootSector.DirEntryCount;
+    uint32_t sectors = (size / g_BootSector.BytesPerSector);
+    if (size % g_BootSector.BytesPerSector > 0)
+        sectors++;
+
+    g_RootDirectoryEnd = lba + sectors;
+    g_RootDirectory = (DirectoryEntry*) malloc(sectors * g_BootSector.BytesPerSector);
+    return readSectors(disk, lba, sectors, g_RootDirectory);
+}
+
+DirectoryEntry* findFile(const char* name){
+    for (uint32_t i = 0; i < g_BootSector.DirEntryCount; i++)
+    {
+        if (memcmp(name, g_RootDirectory[i].Name, 11) == 0){
+            return &g_RootDirectory[i];
+        }
+    }
+}
 
 int main(int argc, char** argv)
 {
@@ -94,8 +116,26 @@ int main(int argc, char** argv)
 
     if (!readFat(disk)){
         fprintf(stderr, "Could not read FAT!\n");
+        free(g_Fat);
         return -3;
     }
 
+    if (!readRootDirectory((disk))) {
+        fprintf(stderr, "Could not read FAT!\n");
+        free(g_Fat);
+        free(g_RootDirectory);
+        return -4;
+    }
+
+    DirectoryEntry* fileEntry = findFile(argv[2]);
+    if (!fileEntry){
+        fprintf(stderr, "Could not find file %s!\n", argv[2]);
+        free(g_Fat);
+        free(g_RootDirectory);
+        return -5;
+    }
+
+    free(g_Fat);
+    free(g_RootDirectory);
     return 0;
 }
