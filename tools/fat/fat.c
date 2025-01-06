@@ -50,6 +50,12 @@ bool readSectors(FILE* disk, uint32_t lba, uint32_t count, void* bufferOut)
     return ok;
 }
 
+bool readFat(FILE* disk)
+{
+    g_Fat = (uint8_t*)malloc(g_BootSector.SectorsPerFat * g_BootSector.BytesPerSector);
+    return readSectors(disk, g_BootSector.ReservedSectors, g_BootSector.SectorsPerFat, g_Fat);
+}
+
 
 int main(int argc, char** argv)
 {
@@ -67,6 +73,11 @@ int main(int argc, char** argv)
     if (!readBootSector(disk)) {
         fprintf(stderr, "Could not read boot sector!\n");
         return -2;
+    }
+
+    if (!readFat(disk)){
+        fprintf(stderr, "Could not read FAT!\n");
+        return -3;
     }
 
     return 0;
