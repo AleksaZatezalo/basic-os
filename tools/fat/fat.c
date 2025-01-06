@@ -34,11 +34,22 @@ typedef struct
 } __attribute__((packed)) BootSector;
 
 BootSector g_BootSector(FILE* disk);
+uint8_t* g_Fat = NULL;
+
 
 bool readBootSector(FILE* disk)
 {
     return fread(&g_BootSector, sizeof(g_BootSector), 1, disk) > 0;
 }
+
+bool readSectors(FILE* disk, uint32_t lba, uint32_t count, void* bufferOut)
+{
+    bool ok = true;
+    ok = ok && (fseek(disk, lba * g_BootSector.BytesPerSector, SEEK_SET) == 0);
+    ok = ok && (fread(bufferOut, g_BootSector.BytesPerSector, count, disk) == count);
+    return ok;
+}
+
 
 int main(int argc, char** argv)
 {
